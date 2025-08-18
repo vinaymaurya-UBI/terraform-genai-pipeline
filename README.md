@@ -52,44 +52,39 @@ cp terraform.tfvars.example terraform.tfvars
 ### 3. Deploy Infrastructure
 
 ```bash
-chmod +x deploy.sh
-./deploy.sh
+# Automated deployment (recommended)
+chmod +x deploy-all.sh
+./deploy-all.sh
+
+# Or manual step-by-step deployment
+terraform init
+terraform apply
 ```
 
-### 4. Upload Sample CSV
+### 4. Test the Pipeline
 
-After deployment, upload a CSV file to the created S3 bucket:
-
-```bash
-aws s3 cp sample-data.csv s3://$(terraform output -raw s3_bucket_name)/
-```
-
-### 5. Execute Pipeline
+The automated deployment script includes testing with sample data:
 
 ```bash
+# The deploy-all.sh script automatically:
+# 1. Uploads sample CSV files
+# 2. Executes the pipeline
+# 3. Monitors execution
+# 4. Shows results
+
+# Or test manually with your own data:
+aws s3 cp your-data.csv s3://$(terraform output -raw s3_bucket_name)/
+
+# Execute pipeline
 aws stepfunctions start-execution \
   --state-machine-arn $(terraform output -raw step_function_arn) \
   --input '{
     "s3_bucket": "'$(terraform output -raw s3_bucket_name)'",
-    "csv_file_path": "sample-data.csv",
+    "csv_file_path": "your-data.csv",
     "columns_to_embed": ["title", "description"]
   }'
 ```
 
-## Sample Data
-
-### Sample CSV Format
-
-Create a file named `sample-products.csv`:
-
-```csv
-id,title,description,category,price
-1,Wireless Headphones,Premium wireless headphones with noise cancellation,Electronics,299.99
-2,Running Shoes,Comfortable running shoes for daily exercise,Sports,129.99
-3,Coffee Maker,Automatic coffee maker with programmable timer,Kitchen,89.99
-4,Smartphone,Latest smartphone with advanced camera features,Electronics,799.99
-5,Yoga Mat,Non-slip yoga mat for home workouts,Sports,39.99
-```
 
 ### Sample Execution Input
 
@@ -216,19 +211,24 @@ aws stepfunctions describe-execution \
 
 ```
 terraform/
+├── .gitignore                    # Comprehensive ignore rules
 ├── modules/
-│   ├── opensearch-serverless/    # OpenSearch collection and security
+│   ├── opensearch-serverless/    # OpenSearch collection (basic)
+│   ├── opensearch-access-policy/ # OpenSearch access management  
 │   ├── embedding-pipeline/       # Step Function and Lambda functions
 │   ├── lambda-layers/            # Lambda layer for dependencies
-│   └── iam/                      # IAM roles and policies
+│   ├── iam/                      # IAM roles and policies
+│   └── ecs-integration/          # ECS container for automation
 ├── lambda-functions/
 │   ├── csv-processor/            # CSV reading and Bedrock embedding
 │   └── opensearch-indexer/       # OpenSearch indexing
 ├── lambda-layers/                # Dependencies and build scripts
+├── ecs-container/                # Docker container for ECS triggers
 ├── main.tf                       # Main Terraform configuration
 ├── variables.tf                  # Input variables
 ├── terraform.tfvars.example      # Example configuration
-└── deploy.sh                     # Deployment script
+├── deploy-all.sh                 # Complete automated deployment
+├── README.md                     # This file
 ```
 
 ## Troubleshooting
@@ -274,21 +274,25 @@ aws lambda invoke \
 - S3 Intelligent Tiering for cost-effective storage
 - CloudWatch log retention set to 14 days
 
+## Additional Resources
+
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Comprehensive step-by-step deployment guide
+- **[API-ENDPOINTS.md](API-ENDPOINTS.md)** - Complete API usage documentation with examples
+- **[examples/](examples/)** - Usage examples and search scripts
+- **[sample-data/](sample-data/)** - Sample CSV files for testing
+
+## Available Scripts
+
+- **`deploy-all.sh`** - Complete automated deployment with testing
+- **`test-deployment.sh`** - Comprehensive test suite with multiple data files
+- **`examples/execute-pipeline.sh`** - Execute pipeline with sample data
+- **`examples/search-examples.py`** - Python examples for searching indexed data
+
 ## Security
 
 - All IAM roles follow least privilege principle
 - OpenSearch collection uses encryption at rest
 - Lambda functions run in isolated execution environments
 - No public access to OpenSearch collection
+- Separate access policy module for better security management
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test with sample data
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License.
