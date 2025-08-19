@@ -1,15 +1,18 @@
 terraform {
   backend "s3" {
-    bucket = "testing-vinay-genai"
-    key    = "cloudplatform/dev-testing"
+    bucket = "testing-opensearch-vinay"
+    key    = "terraform.tfstate"
     region = "us-west-2"
   }
-  required_version = ">=1.0.11"
 
   required_providers {
     aws = {
       source  = "hashicorp/aws"
       version = ">=4.31.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = ">=3.1.0"
     }
   }
 }
@@ -27,80 +30,76 @@ locals {
   }
 }
 
-resource "aws_s3_bucket" "csv_bucket" {
-  bucket = "${var.project_name}-csv-files-${random_string.bucket_suffix.result}"
-  tags   = local.common_tags
-}
-
 resource "random_string" "bucket_suffix" {
   length  = 8
   special = false
   upper   = false
 }
 
-module "lambda_layer" {
-  source = "./modules/lambda-layers"
-
-  layer_name     = "${var.project_name}-embedding-layer"
-  layer_zip_path = "./lambda-layers/embedding-layer.zip"
+resource "aws_s3_bucket" "csv_bucket" {
+  bucket = "${var.project_name}-csv-files-${random_string.bucket_suffix.result}"
+  tags   = local.common_tags
 }
 
-module "opensearch_collection" {
-  source = "./modules/opensearch-serverless"
+resource "aws_s3_bucket_public_access_block" "csv_bucket_pab" {
+  bucket = aws_s3_bucket.csv_bucket.id
 
-  collection_name     = var.opensearch_collection_name
-  allow_public_access = false
-  tags                = local.common_tags
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
-module "iam_roles" {
-  source = "./modules/iam"
+# Basic OpenSearch Serverless Collection (simplified version)
+resource "aws_opensearchserverless_collection" "embedding_collection" {
+  name = var.opensearch_collection_name
+  type = "VECTORSEARCH"
+  depends_on = [aws_opensearchserverless_security_policy.embedding_encryption]
 
-  project_name              = var.project_name
-  region                    = var.region
-  s3_bucket_arn             = aws_s3_bucket.csv_bucket.arn
-  opensearch_collection_arn = module.opensearch_collection.collection_arn
-  tags                      = local.common_tags
-
-  depends_on = [
-    module.opensearch_collection
-  ]
+  tags = local.common_tags
 }
 
-module "opensearch_access_policy" {
-  source = "./modules/opensearch-access-policy"
-
-  collection_name   = var.opensearch_collection_name
-  lambda_role_arns  = [
-    module.iam_roles.csv_processor_role_arn,
-    module.iam_roles.opensearch_indexer_role_arn
-  ]
-
-  depends_on = [
-    module.iam_roles,
-    module.opensearch_collection
-  ]
+# OpenSearch security policy
+resource "aws_opensearchserverless_security_policy" "embedding_encryption" {
+  name        = "${var.opensearch_collection_name}-encryption"
+  type        = "encryption"
+  description = "Encryption policy for ${var.opensearch_collection_name}"
+  policy = jsonencode({
+    Rules = [
+      {
+        Resource = [
+          "collection/${var.opensearch_collection_name}"
+        ]
+        ResourceType = "collection"
+      }
+    ]
+    AWSOwnedKey = true
+  })
 }
 
-module "embedding_pipeline" {
-  source = "./modules/embedding-pipeline"
-
-  project_name                   = var.project_name
-  csv_processor_role_arn         = module.iam_roles.csv_processor_role_arn
-  opensearch_indexer_role_arn    = module.iam_roles.opensearch_indexer_role_arn
-  step_function_role_arn         = module.iam_roles.step_function_role_arn
-  csv_processor_zip_path         = "./lambda-functions/csv-processor/csv-processor.zip"
-  opensearch_indexer_zip_path    = "./lambda-functions/opensearch-indexer/opensearch-indexer.zip"
-  layer_arn                      = module.lambda_layer.layer_arn
-  opensearch_endpoint            = module.opensearch_collection.collection_endpoint
-  tags                           = local.common_tags
-
-  depends_on = [
-    module.iam_roles,
-    module.opensearch_collection,
-    module.opensearch_access_policy,
-    module.lambda_layer
-  ]
+resource "aws_opensearchserverless_security_policy" "embedding_network" {
+  name        = "${var.opensearch_collection_name}-network"
+  type        = "network"
+  description = "Network policy for ${var.opensearch_collection_name}"
+  policy = jsonencode([
+    {
+      Rules = [
+        {
+          Resource = [
+            "collection/${var.opensearch_collection_name}"
+          ]
+          ResourceType = "collection"
+        },
+        {
+          Resource = [
+            "collection/${var.opensearch_collection_name}"
+          ]
+          ResourceType = "dashboard"
+        }
+      ]
+      AllowFromPublic = true
+    }
+  ])
 }
 
 output "s3_bucket_name" {
@@ -110,20 +109,10 @@ output "s3_bucket_name" {
 
 output "opensearch_collection_endpoint" {
   description = "OpenSearch collection endpoint"
-  value       = module.opensearch_collection.collection_endpoint
+  value       = aws_opensearchserverless_collection.embedding_collection.collection_endpoint
 }
 
-output "step_function_arn" {
-  description = "ARN of the embedding pipeline Step Function"
-  value       = module.embedding_pipeline.step_function_arn
-}
-
-output "csv_processor_lambda_arn" {
-  description = "ARN of the CSV processor Lambda function"
-  value       = module.embedding_pipeline.csv_processor_lambda_arn
-}
-
-output "opensearch_indexer_lambda_arn" {
-  description = "ARN of the OpenSearch indexer Lambda function"
-  value       = module.embedding_pipeline.opensearch_indexer_lambda_arn
+output "opensearch_collection_arn" {
+  description = "ARN of the OpenSearch collection"
+  value       = aws_opensearchserverless_collection.embedding_collection.arn
 }

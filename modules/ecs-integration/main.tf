@@ -1,3 +1,9 @@
+
+provider "aws" {
+  region = "ap-south-1"
+}
+
+
 resource "aws_iam_role" "ecs_task_role" {
   name = "${var.project_name}-ecs-task-role"
 

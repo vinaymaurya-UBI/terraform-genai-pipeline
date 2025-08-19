@@ -1,3 +1,9 @@
+
+provider "aws" {
+  region = "ap-south-1"
+}
+
+
 resource "aws_iam_role" "csv_processor_role" {
   name = "${var.project_name}-csv-processor-role"
 
@@ -108,37 +114,3 @@ resource "aws_iam_role_policy" "opensearch_indexer_policy" {
   })
 }
 
-resource "aws_iam_role_policy" "step_function_policy" {
-  name = "${var.project_name}-step-function-policy"
-  role = aws_iam_role.step_function_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "lambda:InvokeFunction"
-        ]
-        Resource = [
-          var.csv_processor_lambda_arn,
-          var.opensearch_indexer_lambda_arn
-        ]
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogDelivery",
-          "logs:GetLogDelivery",
-          "logs:UpdateLogDelivery",
-          "logs:DeleteLogDelivery",
-          "logs:ListLogDeliveries",
-          "logs:PutResourcePolicy",
-          "logs:DescribeResourcePolicies",
-          "logs:DescribeLogGroups"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-}

@@ -1,3 +1,10 @@
+
+
+provider "aws" {
+  region = "ap-south-1"
+}
+
+
 resource "aws_opensearchserverless_access_policy" "data_access_policy" {
   name = "${var.collection_name}-access"
   type = "data"

@@ -1,3 +1,9 @@
+
+provider "aws" {
+  region = "ap-south-1"
+}
+
+
 resource "aws_lambda_function" "csv_processor" {
   function_name = "${var.project_name}-csv-processor"
   role          = var.csv_processor_role_arn
@@ -17,7 +23,25 @@ resource "aws_lambda_function" "csv_processor" {
     }
   }
 
-  tags = var.tags
+    tags = {
+
+    ResourceName       = "Test"
+
+    EmployeeEmail      = "vinay.maurya@usefulbi.com"
+
+    TechnologyArea     = "GenAI"
+
+    ProjectName        = "TBD"
+
+    ClientName         = "TBD"
+
+    ProjectTechLead    = "Hardik"
+
+    CreatedByTerrafrom = "Yes"
+
+    Name               = "Test"
+
+  }
 }
 
 resource "aws_lambda_function" "opensearch_indexer" {
@@ -40,14 +64,50 @@ resource "aws_lambda_function" "opensearch_indexer" {
     }
   }
 
-  tags = var.tags
+    tags = {
+
+    ResourceName       = "Test"
+
+    EmployeeEmail      = "vinay.maurya@usefulbi.com"
+
+    TechnologyArea     = "GenAI"
+
+    ProjectName        = "TBD"
+
+    ClientName         = "TBD"
+
+    ProjectTechLead    = "Hardik"
+
+    CreatedByTerrafrom = "Yes"
+
+    Name               = "Test"
+
+  }
 }
 
 resource "aws_cloudwatch_log_group" "step_function_logs" {
   name              = "/aws/stepfunctions/${var.project_name}-embedding-pipeline"
   retention_in_days = 14
 
-  tags = var.tags
+    tags = {
+
+    ResourceName       = "Test"
+
+    EmployeeEmail      = "vinay.maurya@usefulbi.com"
+
+    TechnologyArea     = "GenAI"
+
+    ProjectName        = "TBD"
+
+    ClientName         = "TBD"
+
+    ProjectTechLead    = "Hardik"
+
+    CreatedByTerrafrom = "Yes"
+
+    Name               = "Test"
+
+  }
 }
 
 resource "aws_sfn_state_machine" "embedding_pipeline" {
@@ -109,13 +169,26 @@ resource "aws_sfn_state_machine" "embedding_pipeline" {
     }
   })
 
-  logging_configuration {
-    log_destination        = "${aws_cloudwatch_log_group.step_function_logs.arn}:*"
-    include_execution_data = true
-    level                  = "ERROR"
-  }
 
-  tags = var.tags
+    tags = {
+
+    ResourceName       = "Test"
+
+    EmployeeEmail      = "vinay.maurya@usefulbi.com"
+
+    TechnologyArea     = "GenAI"
+
+    ProjectName        = "TBD"
+
+    ClientName         = "TBD"
+
+    ProjectTechLead    = "Hardik"
+
+    CreatedByTerrafrom = "Yes"
+
+    Name               = "Test"
+
+  }
 }
 
 resource "aws_lambda_permission" "allow_step_function_csv" {
